@@ -1,0 +1,27 @@
+[gd_scene load_steps=5 format=3 uid="uid://ggq82n12r0aa"]
+
+[ext_resource type="Script" uid="uid://cwk54rh2j3363" path="res://Scripts/player.gd" id="1_cvnsp"]
+[ext_resource type="Texture2D" uid="uid://ogj3e8xp83bu" path="res://icon.svg" id="1_v0iea"]
+[ext_resource type="Script" uid="uid://h7g870hypdb6" path="res://Scripts/camera_2d.gd" id="3_6t5aa"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v0iea"]
+size = Vector2(133, 131)
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_cvnsp")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-0.5, 0.5)
+shape = SubResource("RectangleShape2D_v0iea")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_v0iea")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+script = ExtResource("3_6t5aa")
+
+[node name="MuzzleFront" type="Marker2D" parent="."]
+position = Vector2(20, 0)
+
+[node name="MuzzleBack" type="Marker2D" parent="."]
+position = Vector2(-20, 0)
