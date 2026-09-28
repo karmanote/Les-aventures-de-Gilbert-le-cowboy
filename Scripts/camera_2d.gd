@@ -5,9 +5,9 @@ extends Camera2D
 @export var horizontal_shift_speed: float = 1.0 # Vitesse de transition horizontale
 
 # --- Configuration Verticale (Look Up / Down) ---
-@export var look_vertical_distance: float = 120.0 # Distance de décalage vers le haut/bas
-@export var vertical_shift_speed: float = 1.0     # Vitesse de transition verticale
-@export var look_delay: float = 0.8               # Temps d'attente (en secondes) avant de décaler
+@export var look_vertical_distance: float = 200.0 # Distance de décalage vers le haut/bas
+@export var vertical_shift_speed: float = 2.0     # Vitesse de transition verticale
+@export var look_delay: float = 0.2               # Temps d'attente (en secondes) avant de décaler
 
 # --- Position de base (Rappel : le joueur est dans le tiers inférieur) ---
 @export var base_offset_y: float = -75.0           # Décalage Y initial de votre caméra
