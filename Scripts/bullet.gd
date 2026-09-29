@@ -1,32 +1,42 @@
 extends Area2D
 ## Balle en plastique tirée par Gilbert.
-## Se déplace en ligne droite (gauche ou droite), inflige des dégâts au premier
-## contact puis disparaît. S'autodétruit aussi si elle ne touche rien après un délai.
+## Ligne droite, dégâts au premier contact, disparaît après un délai si elle ne touche rien.
 
-@export var speed: float = 260.0      # volontairement lent : "balle en plastique"
+@export var speed: float = 450.0     # vitesse de base (le joueur peut y ajouter la sienne)
 @export var damage: float = 10.0
-@export var lifetime: float = 2.0     # secondes avant autodestruction
+@export var lifetime: float = 2.5    # secondes avant autodestruction
 
-var direction: int = 1                # 1 = vers la droite, -1 = vers la gauche
+var direction: int = 1               # 1 = droite, -1 = gauche
+var shooter: Node = null             # Gilbert : la balle l'ignore
+
+@onready var sprite: Sprite2D = $Sprite2D
+
 
 func _ready() -> void:
-	scale.x = direction
+	# On NE touche PAS au scale (ton 0.125 reste intact) : on retourne juste le sprite.
+	sprite.flip_h = direction < 0
 
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 
-	await get_tree().create_timer(lifetime).timeout
-	if is_instance_valid(self):
-		queue_free()
 
 func _physics_process(delta: float) -> void:
-	position.x += direction * speed * delta
+	global_position.x += direction * speed * delta
+
+	lifetime -= delta
+	if lifetime <= 0.0:
+		queue_free()
+
 
 func _on_body_entered(body: Node2D) -> void:
+	if body == shooter:
+		return
 	_hit(body)
+
 
 func _on_area_entered(area: Area2D) -> void:
 	_hit(area)
+
 
 func _hit(target: Node) -> void:
 	if target.has_method("take_damage"):
