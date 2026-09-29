@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cwk54rh2j3363" path="res://Scripts/player.gd" id="1_cvnsp"]
 [ext_resource type="Texture2D" uid="uid://dfxkyy3q7dfxk" path="res://Sprites/shrek.webp" id="2_6t5aa"]
+[ext_resource type="PackedScene" uid="uid://df0eltv5e0ugd" path="res://Scenes/bullet.tscn" id="2_vgqql"]
 [ext_resource type="Script" uid="uid://h7g870hypdb6" path="res://Scripts/camera_2d.gd" id="3_6t5aa"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_v0iea"]
@@ -9,6 +10,7 @@ size = Vector2(133, 131)
 
 [node name="Player" type="CharacterBody2D" unique_id=127547156]
 script = ExtResource("1_cvnsp")
+bullet_scene = ExtResource("2_vgqql")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=440936210]
 position = Vector2(-0.5, 0.5)
