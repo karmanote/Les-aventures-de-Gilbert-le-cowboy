@@ -22,8 +22,9 @@ config/icon="res://icon.svg"
 
 folder_colors={
 "res://Assets/": "red",
-"res://Prefabs/": "yellow",
-"res://Scenes/": "orange"
+"res://Prefabs/": "orange",
+"res://Scenes/": "yellow",
+"res://Scripts/": "green"
 }
 
 [global_group]

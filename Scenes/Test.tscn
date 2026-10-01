@@ -9,6 +9,7 @@ size = Vector2(1682, 127)
 [node name="Test scene" type="Node2D" unique_id=41313786]
 
 [node name="CharacterBody2D" parent="." unique_id=164315859 instance=ExtResource("1_ko2s7")]
+position = Vector2(570, 407)
 
 [node name="test-platform" type="StaticBody2D" parent="." unique_id=953138719]
 position = Vector2(-210, 600)
