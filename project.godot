@@ -18,6 +18,14 @@ config/name="Les aventures de Gilbert le cowboy"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[file_customization]
+
+folder_colors={
+"res://Assets/": "red",
+"res://Prefabs/": "yellow",
+"res://Scenes/": "orange"
+}
+
 [global_group]
 
 Player=""

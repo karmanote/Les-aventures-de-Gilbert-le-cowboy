@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://spl0evnry1iv"]
+
+[ext_resource type="PackedScene" uid="uid://bchhg1qxdakf3" path="res://Prefabs/Player.tscn" id="1_ko2s7"]
+[ext_resource type="Texture2D" uid="uid://ogj3e8xp83bu" path="res://icon.svg" id="2_gxb1y"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fc4li"]
+size = Vector2(1682, 127)
+
+[node name="Test scene" type="Node2D" unique_id=41313786]
+
+[node name="CharacterBody2D" parent="." unique_id=164315859 instance=ExtResource("1_ko2s7")]
+
+[node name="test-platform" type="StaticBody2D" parent="." unique_id=953138719]
+position = Vector2(-210, 600)
+
+[node name="Sprite2D" type="Sprite2D" parent="test-platform" unique_id=309079206]
+position = Vector2(777, 0)
+scale = Vector2(13.140625, 1)
+texture = ExtResource("2_gxb1y")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="test-platform" unique_id=1643624414]
+position = Vector2(777, 0.5)
+shape = SubResource("RectangleShape2D_fc4li")
