@@ -1,24 +1,59 @@
 [gd_scene format=3 uid="uid://spl0evnry1iv"]
 
 [ext_resource type="PackedScene" uid="uid://bchhg1qxdakf3" path="res://Prefabs/Player.tscn" id="1_ko2s7"]
-[ext_resource type="Texture2D" uid="uid://ogj3e8xp83bu" path="res://icon.svg" id="2_gxb1y"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_fc4li"]
-size = Vector2(1682, 127)
+[ext_resource type="PackedScene" path="res://Prefabs/Platform.tscn" id="2_platform"]
+[ext_resource type="PackedScene" path="res://Prefabs/Bandit.tscn" id="3_bandit"]
+[ext_resource type="PackedScene" path="res://Prefabs/KillZone.tscn" id="4_killzone"]
+[ext_resource type="PackedScene" path="res://Prefabs/HUD.tscn" id="5_hud"]
 
 [node name="Test scene" type="Node2D" unique_id=41313786]
 
-[node name="CharacterBody2D" parent="." unique_id=164315859 instance=ExtResource("1_ko2s7")]
-position = Vector2(570, 407)
+[node name="Niveau" type="Node2D" parent="."]
 
-[node name="test-platform" type="StaticBody2D" parent="." unique_id=953138719]
-position = Vector2(-210, 600)
+[node name="MurDebut" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(-250, 300)
+size = Vector2(100, 600)
 
-[node name="Sprite2D" type="Sprite2D" parent="test-platform" unique_id=309079206]
-position = Vector2(777, 0)
-scale = Vector2(13.140625, 1)
-texture = ExtResource("2_gxb1y")
+[node name="SolDepart" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(500, 600)
+size = Vector2(1400, 128)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="test-platform" unique_id=771294325]
-position = Vector2(777, 0.5)
-shape = SubResource("RectangleShape2D_fc4li")
+[node name="Plateforme1" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(700, 400)
+size = Vector2(256, 32)
+
+[node name="Plateforme2" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(1050, 260)
+size = Vector2(220, 32)
+
+[node name="SolArrivee" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(2050, 600)
+size = Vector2(1200, 128)
+
+[node name="Tunnel" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(1950, 388)
+size = Vector2(300, 200)
+
+[node name="MurFin" parent="Niveau" instance=ExtResource("2_platform")]
+position = Vector2(2700, 300)
+size = Vector2(100, 600)
+
+[node name="Ennemis" type="Node2D" parent="."]
+
+[node name="Bandit1" parent="Ennemis" instance=ExtResource("3_bandit")]
+position = Vector2(1000, 500)
+
+[node name="Bandit2" parent="Ennemis" instance=ExtResource("3_bandit")]
+position = Vector2(700, 348)
+start_direction = 1
+
+[node name="Bandit3" parent="Ennemis" instance=ExtResource("3_bandit")]
+position = Vector2(2400, 500)
+
+[node name="Player" parent="." instance=ExtResource("1_ko2s7")]
+position = Vector2(150, 500)
+
+[node name="Vide" parent="." instance=ExtResource("4_killzone")]
+position = Vector2(0, 1000)
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]
