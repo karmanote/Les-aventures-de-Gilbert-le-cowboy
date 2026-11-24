@@ -19,6 +19,10 @@ run/main_scene="uid://spl0evnry1iv"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[display]
+
+window/size/mode=3
+
 [file_customization]
 
 folder_colors={

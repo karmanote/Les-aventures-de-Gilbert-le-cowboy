@@ -2,44 +2,48 @@
 
 [ext_resource type="Script" path="res://Scripts/bandit.gd" id="1_bandit"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_corps"]
 size = Vector2(48, 64)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_contact"]
 size = Vector2(44, 60)
 
 [node name="Bandit" type="CharacterBody2D"]
 collision_layer = 4
 script = ExtResource("1_bandit")
 
-[node name="Visual" type="Node2D" parent="."]
+[node name="Apparence" type="Node2D" parent="."]
 
-[node name="Body" type="Polygon2D" parent="Visual"]
+[node name="Corps" type="Polygon2D" parent="Apparence"]
 color = Color(0.25, 0.2, 0.3, 1)
 polygon = PackedVector2Array(-24, -32, 24, -32, 24, 32, -24, 32)
 
-[node name="Bandana" type="Polygon2D" parent="Visual"]
+[node name="Bandana" type="Polygon2D" parent="Apparence"]
 color = Color(0.8, 0.1, 0.1, 1)
 polygon = PackedVector2Array(-24, -12, 24, -12, 24, -2, -24, -2)
 
-[node name="Eye" type="Polygon2D" parent="Visual"]
+[node name="Oeil" type="Polygon2D" parent="Apparence"]
 color = Color(1, 1, 1, 1)
 polygon = PackedVector2Array(8, -24, 16, -24, 16, -17, 8, -17)
 
-[node name="Hat" type="Polygon2D" parent="Visual"]
+[node name="Chapeau" type="Polygon2D" parent="Apparence"]
 color = Color(0.08, 0.08, 0.08, 1)
 polygon = PackedVector2Array(-14, -50, 14, -50, 16, -36, 32, -36, 32, -30, -32, -30, -32, -36, -16, -36)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_body")
+shape = SubResource("RectangleShape2D_corps")
 
-[node name="Hitbox" type="Area2D" parent="."]
+[node name="ZoneContact" type="Area2D" parent="."]
 collision_layer = 0
 collision_mask = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
-shape = SubResource("RectangleShape2D_hitbox")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ZoneContact"]
+shape = SubResource("RectangleShape2D_contact")
 
-[node name="LedgeCheck" type="RayCast2D" parent="."]
+[node name="SolGauche" type="RayCast2D" parent="."]
 position = Vector2(-28, 24)
+target_position = Vector2(0, 24)
+
+[node name="SolDroite" type="RayCast2D" parent="."]
+position = Vector2(28, 24)
 target_position = Vector2(0, 24)

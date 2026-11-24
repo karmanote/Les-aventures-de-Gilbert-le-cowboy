@@ -12,31 +12,31 @@
 
 [node name="MurDebut" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(-250, 300)
-size = Vector2(100, 600)
+taille = Vector2(100, 600)
 
 [node name="SolDepart" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(500, 600)
-size = Vector2(1400, 128)
+taille = Vector2(1400, 128)
 
 [node name="Plateforme1" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(700, 400)
-size = Vector2(256, 32)
+taille = Vector2(256, 32)
 
 [node name="Plateforme2" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(1050, 260)
-size = Vector2(220, 32)
+taille = Vector2(220, 32)
 
 [node name="SolArrivee" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(2050, 600)
-size = Vector2(1200, 128)
+taille = Vector2(1200, 128)
 
 [node name="Tunnel" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(1950, 388)
-size = Vector2(300, 200)
+taille = Vector2(300, 200)
 
 [node name="MurFin" parent="Niveau" instance=ExtResource("2_platform")]
 position = Vector2(2700, 300)
-size = Vector2(100, 600)
+taille = Vector2(100, 600)
 
 [node name="Ennemis" type="Node2D" parent="."]
 
@@ -45,7 +45,7 @@ position = Vector2(1000, 500)
 
 [node name="Bandit2" parent="Ennemis" instance=ExtResource("3_bandit")]
 position = Vector2(700, 348)
-start_direction = 1
+direction = 1
 
 [node name="Bandit3" parent="Ennemis" instance=ExtResource("3_bandit")]
 position = Vector2(2400, 500)

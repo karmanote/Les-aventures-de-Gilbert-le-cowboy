@@ -2,494 +2,292 @@ extends CharacterBody2D
 ## Gilbert le cowboy.
 ##
 ## Règle d'or : Gilbert ne se retourne JAMAIS.
-## "Devant" = toujours à droite, "derrière" = toujours à gauche, quel que soit
-## son sens de déplacement : il recule en moonwalk et tire derrière lui à l'aveuglette.
+## Devant = toujours à droite, derrière = toujours à gauche.
+## Il peut reculer (moonwalk) et tirer derrière lui à l'aveuglette.
 ##
-## Le script est une machine à états : Gilbert est toujours dans UN seul état
-## (normal, dash, glissade...). Chaque état a sa fonction _state_xxx() appelée
-## à chaque frame, et on passe d'un état à l'autre avec _change_state().
-
-signal health_changed(current: int, maximum: int)
-signal bottles_changed(count: int)
-signal died
-
-enum State { NORMAL, DASH, SLIDE, ROLL, KICK, DRINK, HURT, DEAD }
-
-## Devant = droite. C'est le concept du jeu, on n'y touche pas !
-const FORWARD := 1
-## Différence de hauteur entre la hitbox debout (64) et accroupie (32).
-const CROUCH_DELTA := 32.0
-
-@export_group("Déplacement")
-@export var speed: float = 450.0
-@export var deceleration: float = 6000.0       ## freinage au sol quand on lâche les touches
-@export var air_deceleration: float = 1500.0   ## freinage en l'air : garde l'élan d'un dash ou d'une glissade
-@export var gravity_scale: float = 2.0
-@export var max_fall_speed: float = 1400.0
-
-@export_group("Saut")
-@export var jump_velocity: float = -800.0
-@export var coyote_time: float = 0.1   ## on peut encore sauter un court instant après avoir quitté le bord
-@export var jump_buffer: float = 0.1   ## un saut appuyé juste avant d'atterrir est quand même pris
-@export var jump_cut: float = 0.5      ## relâcher le saut tôt = saut plus court
-
-@export_group("Tir")
-@export var bullet_scene: PackedScene  ## Prefabs/Bullet.tscn
-@export var fire_cooldown: float = 0.25
-@export var auto_fire: bool = true     ## maintenir le clic = tir en rafale
-@export var inherit_speed: bool = true ## la balle ajoute la vitesse de Gilbert s'il court dans le même sens
-@export var shake_on_fire: float = 2.0 ## intensité du screen shake (0 = désactivé)
-
-@export_group("Dash")
-@export var dash_speed: float = 1100.0
-@export var dash_duration: float = 0.15
-@export var dash_cooldown: float = 0.4
-@export var air_dashes: int = 1        ## dashs autorisés en l'air avant de retoucher le sol
-
-@export_group("Glissade")
-@export var slide_speed: float = 750.0
-@export var slide_duration: float = 0.55
-@export var slide_friction: float = 900.0
-
-@export_group("Roulade")
-@export var roll_speed: float = 550.0
-@export var roll_duration: float = 0.35
-@export var roll_cooldown: float = 0.5
-
-@export_group("Coup de pied")
-@export var kick_damage: int = 15
-@export var kick_duration: float = 0.35
-@export var kick_hit_time: float = 0.1 ## moment où le pied touche (après l'élan)
-@export var kick_knockback: Vector2 = Vector2(600, -300)
-
-@export_group("Vie")
-@export var max_health: int = 5
-@export var max_bottles: int = 3
-@export var drink_heal: int = 2
-@export var drink_duration: float = 0.8
-@export var hurt_duration: float = 0.25
-@export var invincibility_time: float = 1.0
-
-@onready var visual: Node2D = $Visual
-@onready var bottle: Polygon2D = $Visual/Bottle
-@onready var stand_shape: CollisionShape2D = $StandShape
-@onready var crouch_shape: CollisionShape2D = $CrouchShape
-@onready var muzzle_front: Marker2D = $MuzzleFront
-@onready var muzzle_back: Marker2D = $MuzzleBack
-@onready var kick_hitbox: Area2D = $KickHitbox
-@onready var boot: Polygon2D = $KickHitbox/Boot
-@onready var camera: Camera2D = $Camera2D
-
-var state: State = State.NORMAL
-var state_time: float = 0.0   # temps passé dans l'état actuel
-var move_dir: int = FORWARD   # sens du dash / de la glissade / de la roulade en cours
-
-var health: int
-var bottles: int
-var checkpoint_position: Vector2
-
-var fire_timer: float = 0.0
-var dash_cooldown_timer: float = 0.0
-var roll_cooldown_timer: float = 0.0
-var coyote_timer: float = 0.0
-var jump_buffer_timer: float = 0.0
-var invincible_timer: float = 0.0
-var air_dashes_left: int = 0
-var kick_done: bool = false
-var crouched: bool = false
-
-var _muzzle_height: float
+## Gilbert est toujours dans UN "état" à la fois :
+## "normal", "dash", "glissade", "roulade", "coup_de_pied", "boire", "touche" ou "mort".
+## Selon son état, il ne peut pas faire les mêmes choses.
 
 
-func _ready() -> void:
-	health = max_health
-	bottles = max_bottles
-	checkpoint_position = global_position
-	air_dashes_left = air_dashes
-	_muzzle_height = muzzle_front.position.y
-	if bullet_scene == null:
-		push_warning("Player : 'Bullet Scene' n'est pas assigné dans l'Inspector !")
+# --- Réglages : change les nombres pour tester ! ---
+const VITESSE = 450.0
+const VITESSE_SAUT = -800.0
+const COEF_GRAVITE = 2
+
+const VITESSE_DASH = 1100.0
+const DUREE_DASH = 0.15
+
+const VITESSE_GLISSADE = 700.0
+const DUREE_GLISSADE = 0.5
+
+const VITESSE_ROULADE = 550.0
+const DUREE_ROULADE = 0.35
+
+const ATTENTE_ENTRE_ESQUIVES = 0.5  # temps à attendre entre deux dashs ou roulades
+
+const DEGATS_COUP_DE_PIED = 15
+const DUREE_COUP_DE_PIED = 0.3
+
+const VIE_MAX = 5
+const SOIN_WHISKY = 2
+const DUREE_BOIRE = 0.8
+const DUREE_TOUCHE = 0.25      # Gilbert est sonné pendant ce temps après un coup
+const DUREE_INVINCIBLE = 1.0   # temps sans prendre de dégâts après un coup
+
+const BALLE = preload("res://Prefabs/Bullet.tscn")
 
 
-func _physics_process(delta: float) -> void:
-	_update_timers(delta)
-	state_time += delta
+# --- Variables qui changent pendant le jeu ---
+var etat = "normal"
+var temps_dans_etat = 0.0      # depuis combien de secondes on est dans l'état actuel
+var direction_action = 1       # sens du dash / de la glissade / de la roulade (1 = droite, -1 = gauche)
+var vie = VIE_MAX
+var bouteilles = 3
+var attente_esquive = 0.0
+var temps_invincible = 0.0
+var point_de_depart = Vector2.ZERO
 
-	match state:
-		State.NORMAL: _state_normal(delta)
-		State.DASH: _state_dash(delta)
-		State.SLIDE: _state_slide(delta)
-		State.ROLL: _state_roll(delta)
-		State.KICK: _state_kick(delta)
-		State.DRINK: _state_drink(delta)
-		State.HURT: _state_hurt(delta)
-		State.DEAD: _state_dead(delta)
+
+func _ready():
+	point_de_depart = global_position
+
+
+func _physics_process(delta):
+	# Les compteurs de temps
+	temps_dans_etat += delta
+	attente_esquive -= delta
+	temps_invincible -= delta
+
+	# La gravité (sauf pendant le dash)
+	if not is_on_floor() and etat != "dash":
+		velocity += get_gravity() * delta * COEF_GRAVITE
+
+	# Ce que fait Gilbert dépend de son état
+	match etat:
+		"normal": etat_normal()
+		"dash": etat_dash()
+		"glissade": etat_glissade()
+		"roulade": etat_roulade()
+		"coup_de_pied": etat_coup_de_pied()
+		"boire": etat_boire()
+		"touche": etat_touche()
+		"mort": velocity.x = 0
 
 	move_and_slide()
-
-	if is_on_floor():
-		coyote_timer = coyote_time
-		air_dashes_left = air_dashes
-
-	_update_visual()
+	mettre_a_jour_apparence()
 
 
-func _update_timers(delta: float) -> void:
-	fire_timer = maxf(0.0, fire_timer - delta)
-	dash_cooldown_timer = maxf(0.0, dash_cooldown_timer - delta)
-	roll_cooldown_timer = maxf(0.0, roll_cooldown_timer - delta)
-	coyote_timer = maxf(0.0, coyote_timer - delta)
-	jump_buffer_timer = maxf(0.0, jump_buffer_timer - delta)
-	invincible_timer = maxf(0.0, invincible_timer - delta)
-	if Input.is_action_just_pressed("ui_accept"):
-		jump_buffer_timer = jump_buffer
+func changer_etat(nouvel_etat):
+	etat = nouvel_etat
+	temps_dans_etat = 0.0
 
 
 # =========================================================================
-# ÉTATS
+# LES ÉTATS
 # =========================================================================
 
-func _state_normal(delta: float) -> void:
-	_apply_gravity(delta)
-	_apply_horizontal_input(delta)
-	_try_jump()
-	_handle_shooting()
+func etat_normal():
+	# Courir à gauche ou à droite
+	var direction = Input.get_axis("ui_left", "ui_right")
+	if direction != 0:
+		velocity.x = direction * VITESSE
+	else:
+		velocity.x = move_toward(velocity.x, 0, VITESSE / 2)
 
-	# Actions spéciales : une seule à la fois
-	if Input.is_action_just_pressed("dash") and _can_dash():
-		_change_state(State.DASH)
+	# Sauter
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+		velocity.y = VITESSE_SAUT
+
+	gerer_tir()
+
+	# Les actions spéciales
+	if Input.is_action_just_pressed("dash") and attente_esquive <= 0:
+		changer_etat("dash")
+		direction_action = direction_choisie()
+		attente_esquive = ATTENTE_ENTRE_ESQUIVES
+
 	elif Input.is_action_just_pressed("slide") and is_on_floor():
-		_change_state(State.SLIDE)
-	elif Input.is_action_just_pressed("roll") and is_on_floor() and roll_cooldown_timer <= 0.0:
-		_change_state(State.ROLL)
+		changer_etat("glissade")
+		direction_action = direction_choisie()
+		se_baisser(true)
+
+	elif Input.is_action_just_pressed("roll") and is_on_floor() and attente_esquive <= 0:
+		changer_etat("roulade")
+		direction_action = direction_choisie()
+		attente_esquive = ATTENTE_ENTRE_ESQUIVES
+		se_baisser(true)
+
 	elif Input.is_action_just_pressed("front_kick"):
-		_change_state(State.KICK)
-	elif Input.is_action_just_pressed("drink") and _can_drink():
-		_change_state(State.DRINK)
+		changer_etat("coup_de_pied")
+		donner_coup_de_pied()
+
+	elif Input.is_action_just_pressed("drink") and bouteilles > 0 and vie < VIE_MAX and is_on_floor():
+		changer_etat("boire")
 
 
-# Dash : rafale horizontale très rapide, sans gravité. Marche aussi en l'air.
-func _state_dash(_delta: float) -> void:
-	velocity = Vector2(move_dir * dash_speed, 0.0)
-	_handle_shooting()
-	if state_time >= dash_duration:
-		velocity.x = move_dir * speed
-		_end_action()
+# Dash : une poussée très rapide, même en l'air
+func etat_dash():
+	velocity = Vector2(direction_action * VITESSE_DASH, 0)
+	gerer_tir()
+	if temps_dans_etat >= DUREE_DASH:
+		changer_etat("normal")
 
 
-# Glissade : Gilbert se couche et glisse en gardant son élan.
-# Il peut tirer pendant la glissade et sauter pour en sortir (le saut garde l'élan !).
-func _state_slide(delta: float) -> void:
-	_apply_gravity(delta)
-	velocity.x = move_toward(velocity.x, 0.0, slide_friction * delta)
-	_handle_shooting()
-
-	if not _can_stand_up():
-		# Coincé sous un plafond : on avance au minimum pour ressortir de l'autre côté
-		velocity.x = move_dir * maxf(absf(velocity.x), speed * 0.5)
-		return
-
-	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
-		_change_state(State.NORMAL)
-		_jump()
-	elif not is_on_floor() or state_time >= slide_duration or absf(velocity.x) < speed * 0.4:
-		_change_state(State.NORMAL)
+# Glissade : Gilbert se couche et glisse. Il peut tirer en même temps !
+func etat_glissade():
+	velocity.x = direction_action * VITESSE_GLISSADE
+	gerer_tir()
+	# À la fin, on se relève... sauf si on est encore sous un plafond
+	if temps_dans_etat >= DUREE_GLISSADE and peut_se_relever():
+		se_baisser(false)
+		changer_etat("normal")
 
 
-# Roulade : esquive courte, Gilbert est invincible pendant toute la roulade.
-func _state_roll(delta: float) -> void:
-	_apply_gravity(delta)
-	velocity.x = move_dir * roll_speed
-	if state_time >= roll_duration:
-		velocity.x = move_dir * speed * 0.5
-		_end_action()
+# Roulade : comme la glissade, mais Gilbert est invincible et ne tire pas
+func etat_roulade():
+	velocity.x = direction_action * VITESSE_ROULADE
+	if temps_dans_etat >= DUREE_ROULADE and peut_se_relever():
+		se_baisser(false)
+		changer_etat("normal")
 
 
-# Coup de pied : toujours vers l'avant (Gilbert ne se retourne pas !).
-func _state_kick(delta: float) -> void:
-	_apply_gravity(delta)
-	var decel := deceleration if is_on_floor() else air_deceleration
-	velocity.x = move_toward(velocity.x, 0.0, decel * delta)
-
-	if not kick_done and state_time >= kick_hit_time:
-		kick_done = true
-		_kick_hit()
-
-	if state_time >= kick_duration:
-		_end_action()
+func etat_coup_de_pied():
+	velocity.x = move_toward(velocity.x, 0, VITESSE / 2)
+	if temps_dans_etat >= DUREE_COUP_DE_PIED:
+		changer_etat("normal")
 
 
-# Boire : Gilbert s'arrête pour boire une gorgée de whisky et récupère de la vie.
-# S'il se fait toucher avant la fin, la gorgée est perdue (mais pas la bouteille).
-func _state_drink(delta: float) -> void:
-	_apply_gravity(delta)
-	velocity.x = move_toward(velocity.x, 0.0, deceleration * delta)
-	if state_time >= drink_duration:
-		bottles -= 1
-		health = mini(health + drink_heal, max_health)
-		bottles_changed.emit(bottles)
-		health_changed.emit(health, max_health)
-		_end_action()
+# Boire : Gilbert s'arrête pour boire, et récupère de la vie à la fin
+func etat_boire():
+	velocity.x = 0
+	if temps_dans_etat >= DUREE_BOIRE:
+		bouteilles -= 1
+		vie = min(vie + SOIN_WHISKY, VIE_MAX)
+		changer_etat("normal")
 
 
-func _state_hurt(delta: float) -> void:
-	_apply_gravity(delta)
-	velocity.x = move_toward(velocity.x, 0.0, air_deceleration * delta)
-	if state_time >= hurt_duration:
-		_end_action()
-
-
-func _state_dead(delta: float) -> void:
-	_apply_gravity(delta)
-	velocity.x = move_toward(velocity.x, 0.0, deceleration * delta)
-
-
-func _change_state(new_state: State) -> void:
-	state = new_state
-	state_time = 0.0
-
-	match new_state:
-		State.NORMAL:
-			if crouched:
-				_set_crouched(false)
-		State.DASH:
-			move_dir = _input_dir_or(FORWARD)
-			dash_cooldown_timer = dash_cooldown
-			if not is_on_floor():
-				air_dashes_left -= 1
-			velocity = Vector2(move_dir * dash_speed, 0.0)
-			_shake(3.0)
-		State.SLIDE:
-			var current_dir := int(signf(velocity.x)) if velocity.x != 0.0 else FORWARD
-			move_dir = _input_dir_or(current_dir)
-			velocity.x = move_dir * maxf(slide_speed, absf(velocity.x))
-			_set_crouched(true)
-		State.ROLL:
-			move_dir = _input_dir_or(FORWARD)
-			roll_cooldown_timer = roll_cooldown
-			velocity.x = move_dir * roll_speed
-			_set_crouched(true)
-		State.KICK:
-			kick_done = false
-		State.DEAD:
-			died.emit()
-			get_tree().create_timer(1.5).timeout.connect(_on_death_timer_timeout)
-
-
-## Fin d'une action : retour à l'état normal, sauf si on est coincé sous un plafond.
-func _end_action() -> void:
-	if crouched and not _can_stand_up():
-		_change_state(State.SLIDE)
-	else:
-		_change_state(State.NORMAL)
+# Touché : Gilbert est sonné, on ne le contrôle plus pendant un court instant
+func etat_touche():
+	if temps_dans_etat >= DUREE_TOUCHE:
+		se_baisser(false)
+		changer_etat("normal")
 
 
 # =========================================================================
-# DÉPLACEMENT
+# LES ACTIONS
 # =========================================================================
 
-func _apply_gravity(delta: float) -> void:
-	if not is_on_floor():
-		velocity += get_gravity() * gravity_scale * delta
-		velocity.y = minf(velocity.y, max_fall_speed)
-
-
-func _apply_horizontal_input(delta: float) -> void:
-	var direction := Input.get_axis("ui_left", "ui_right")
-	var target := direction * speed
-	if direction != 0.0 and absf(velocity.x) <= speed:
-		velocity.x = target # réactif : pleine vitesse tout de suite
-	else:
-		# On lâche les touches, ou on va plus vite que la normale (élan d'un dash / d'une glissade)
-		var decel := deceleration if is_on_floor() else air_deceleration
-		velocity.x = move_toward(velocity.x, target, decel * delta)
-
-
-func _try_jump() -> void:
-	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
-		_jump()
-	# Saut à hauteur variable : relâcher tôt coupe la montée
-	if Input.is_action_just_released("ui_accept") and velocity.y < 0.0:
-		velocity.y *= jump_cut
-
-
-func _jump() -> void:
-	velocity.y = jump_velocity
-	jump_buffer_timer = 0.0
-	coyote_timer = 0.0
-
-
-func _can_dash() -> bool:
-	return dash_cooldown_timer <= 0.0 and (is_on_floor() or air_dashes_left > 0)
-
-
-func _can_drink() -> bool:
-	return bottles > 0 and health < max_health and is_on_floor()
-
-
-## Sens donné par les touches, ou default_dir si aucune touche n'est appuyée.
-func _input_dir_or(default_dir: int) -> int:
-	var axis := Input.get_axis("ui_left", "ui_right")
-	if axis > 0.0:
-		return 1
-	if axis < 0.0:
+# Le sens des touches, ou devant (droite) si on n'appuie sur rien
+func direction_choisie():
+	if Input.get_axis("ui_left", "ui_right") < 0:
 		return -1
-	return default_dir
+	return 1
 
 
-## Accroupi (glissade, roulade) = petite hitbox, on passe sous les obstacles bas.
-func _set_crouched(value: bool) -> void:
-	crouched = value
-	# set_deferred : on ne change pas les collisions en plein calcul de physique
-	stand_shape.set_deferred("disabled", value)
-	crouch_shape.set_deferred("disabled", not value)
-	# On tire plus bas quand on est couché
-	var muzzle_y := _muzzle_height + CROUCH_DELTA * 0.5 if value else _muzzle_height
-	muzzle_front.position.y = muzzle_y
-	muzzle_back.position.y = muzzle_y
+# Clic gauche = tirer devant (à droite), clic droit = tirer derrière (à gauche)
+func gerer_tir():
+	if Input.is_action_just_pressed("shoot_forward"):
+		tirer(1, $CanonDevant)
+	if Input.is_action_just_pressed("shoot_backward"):
+		tirer(-1, $CanonDerriere)
 
 
-## Vrai s'il y a la place de se relever (pas de plafond juste au-dessus).
-func _can_stand_up() -> bool:
-	if not crouched:
-		return true
-	return not test_move(global_transform, Vector2(0.0, -CROUCH_DELTA))
+func tirer(direction, canon):
+	var balle = BALLE.instantiate()
+	balle.direction = direction
+	get_tree().current_scene.add_child(balle)
+	balle.global_position = canon.global_position
+	$Camera2D.trigger_shake(2.0, 8.0)
+	# TODO : onomatopée "PAN !" / effet sonore façon BD
+
+
+# Le coup de pied touche tous les ennemis dans la zone devant Gilbert
+func donner_coup_de_pied():
+	for corps in $ZoneCoupDePied.get_overlapping_bodies():
+		if corps.has_method("prendre_degats"):
+			corps.prendre_degats(DEGATS_COUP_DE_PIED, Vector2(600, -300))
+			$Camera2D.trigger_shake(8.0, 30.0)
+
+
+# Baissé (glissade, roulade) = petite hitbox, pour passer sous les obstacles
+func se_baisser(baisse):
+	# set_deferred = on change la collision à la fin de la frame, pas en plein calcul
+	$HitboxDebout.set_deferred("disabled", baisse)
+	$HitboxBaissee.set_deferred("disabled", not baisse)
+
+
+# On peut se relever s'il n'y a rien dans la zone au-dessus de la tête
+func peut_se_relever():
+	return not $ZoneTete.has_overlapping_bodies()
 
 
 # =========================================================================
-# COMBAT
+# LA VIE
 # =========================================================================
 
-# --- Tir avant / arrière ---
-# "devant" = toujours à droite (clic gauche), "derrière" = toujours à gauche (clic droit).
-func _handle_shooting() -> void:
-	if fire_timer > 0.0:
-		return
-	if _shoot_pressed("shoot_forward"):
-		_shoot(FORWARD)
-	elif _shoot_pressed("shoot_backward"):
-		_shoot(-FORWARD)
+# Appelée par les ennemis quand ils touchent Gilbert
+func prendre_degats(degats, poussee):
+	if etat == "mort" or etat == "roulade" or temps_invincible > 0:
+		return  # pas de dégâts !
 
-
-func _shoot_pressed(action: String) -> bool:
-	if auto_fire:
-		return Input.is_action_pressed(action)
-	return Input.is_action_just_pressed(action)
-
-
-func _shoot(direction: int) -> void:
-	if bullet_scene == null:
-		return
-	fire_timer = fire_cooldown
-
-	var spawn_point: Marker2D = muzzle_front if direction == FORWARD else muzzle_back
-	var bullet = bullet_scene.instantiate()
-	bullet.direction = direction
-	bullet.shooter = self
-	if inherit_speed:
-		bullet.speed += maxf(0.0, velocity.x * direction)
-
-	get_tree().current_scene.add_child(bullet)
-	bullet.global_position = spawn_point.global_position
-	_shake(shake_on_fire)
-
-	# TODO : anim "bras tendu vers l'arrière" quand direction == -1 (tir à l'aveuglette)
-	# TODO : onomatopée "PAN !" / effet sonore façon BD ici
-
-
-func _kick_hit() -> void:
-	var hit_something := false
-	for body in kick_hitbox.get_overlapping_bodies():
-		if body.has_method("take_damage"):
-			body.take_damage(kick_damage, Vector2(kick_knockback.x * FORWARD, kick_knockback.y))
-			hit_something = true
-	if hit_something:
-		_shake(8.0)
-
-
-## Appelée par les ennemis. knockback = la poussée reçue (vers où Gilbert est projeté).
-func take_damage(amount: int, knockback: Vector2 = Vector2.ZERO) -> void:
-	if state == State.DEAD or is_invincible():
-		return
-	_lose_health(amount)
-	if state == State.DEAD:
-		return
-	velocity = knockback
-	_change_state(State.HURT)
-
-
-func is_invincible() -> bool:
-	return invincible_timer > 0.0 or state == State.ROLL
-
-
-## Appelée par la KillZone quand Gilbert tombe dans le vide.
-func fall_into_void() -> void:
-	if state == State.DEAD:
-		return
-	_lose_health(1) # tomber fait toujours mal, même invincible
-	if state == State.DEAD:
-		return
-	global_position = checkpoint_position
-	velocity = Vector2.ZERO
-	_change_state(State.NORMAL)
-
-
-## À appeler depuis un futur checkpoint : c'est là que Gilbert reviendra s'il tombe.
-func set_checkpoint(new_position: Vector2) -> void:
-	checkpoint_position = new_position
-
-
-func _lose_health(amount: int) -> void:
-	health = maxi(health - amount, 0)
-	health_changed.emit(health, max_health)
-	_shake(12.0)
-	if health == 0:
-		_change_state(State.DEAD)
+	vie -= degats
+	$Camera2D.trigger_shake(12.0, 40.0)
+	if vie <= 0:
+		mourir()
 	else:
-		invincible_timer = invincibility_time
+		temps_invincible = DUREE_INVINCIBLE
+		velocity = poussee
+		changer_etat("touche")
 
 
-func _on_death_timer_timeout() -> void:
-	get_tree().reload_current_scene()
+# Appelée par le Vide quand Gilbert tombe dedans
+func tomber_dans_le_vide():
+	if etat == "mort":
+		return
+
+	vie -= 1
+	if vie <= 0:
+		mourir()
+	else:
+		# Retour au point de départ
+		global_position = point_de_depart
+		velocity = Vector2.ZERO
+		temps_invincible = DUREE_INVINCIBLE
+		se_baisser(false)
+		changer_etat("normal")
+
+
+func mourir():
+	vie = 0
+	changer_etat("mort")
+	await get_tree().create_timer(1.5).timeout  # on attend 1,5 seconde...
+	get_tree().reload_current_scene()           # ...et on recommence le niveau
 
 
 # =========================================================================
-# VISUEL (en attendant les vrais sprites / animations)
+# L'APPARENCE (en attendant les vrais sprites)
 # =========================================================================
 
-func _update_visual() -> void:
-	var target_scale := Vector2.ONE
-	var target_position := Vector2.ZERO
-	var target_rotation := 0.0
+func mettre_a_jour_apparence():
+	# Écrasé quand il est baissé
+	if etat == "glissade" or etat == "roulade":
+		$Apparence.scale = Vector2(1.2, 0.5)
+		$Apparence.position.y = 16
+	else:
+		$Apparence.scale = Vector2(1, 1)
+		$Apparence.position.y = 0
 
-	match state:
-		State.SLIDE:
-			target_scale = Vector2(1.2, 0.5)
-			target_position = Vector2(0.0, CROUCH_DELTA * 0.5)
-		State.ROLL:
-			target_scale = Vector2(0.5, 0.5)
-			target_position = Vector2(0.0, CROUCH_DELTA * 0.5)
-			target_rotation = move_dir * TAU * state_time / roll_duration
-		State.DASH:
-			target_scale = Vector2(1.3, 0.8)
-		State.DRINK:
-			target_scale = Vector2(1.0, 0.96 + 0.04 * sin(state_time * 30.0))
-		State.DEAD:
-			target_rotation = -PI / 2.0 # Gilbert tombe à la renverse
+	# Allongé quand il est mort
+	if etat == "mort":
+		$Apparence.rotation_degrees = -90
 
-	visual.scale = target_scale
-	visual.position = target_position
-	visual.rotation = target_rotation
+	# À moitié transparent quand il est invincible
+	if temps_invincible > 0 or etat == "roulade":
+		$Apparence.modulate.a = 0.5
+	else:
+		$Apparence.modulate.a = 1.0
 
-	var color := Color(0.5, 0.5, 0.5) if state == State.DEAD else Color.WHITE
-	if invincible_timer > 0.0 and state != State.DEAD:
-		color.a = 0.35 if fmod(invincible_timer, 0.16) < 0.08 else 1.0
-	visual.modulate = color
-
-	bottle.visible = state == State.DRINK
-	boot.visible = state == State.KICK and state_time >= kick_hit_time and state_time < kick_hit_time + 0.15
-
-
-func _shake(amount: float) -> void:
-	if amount > 0.0 and camera and camera.has_method("trigger_shake"):
-		camera.trigger_shake(amount, amount * 4.0)
+	# La bouteille et la botte n'apparaissent que pendant leur action
+	$Apparence/Bouteille.visible = (etat == "boire")
+	$ZoneCoupDePied/Botte.visible = (etat == "coup_de_pied")
